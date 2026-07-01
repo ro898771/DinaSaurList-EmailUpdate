@@ -40,20 +40,22 @@ def main() -> None:
     step1_ok = UpdateRecord.build_update_record()
 
     if not step1_ok:
-        if UPDATE_RECORD.exists():
-            print(f"[WARN] Step 1 failed — using existing UpdateRecord.json from previous run.")
-        else:
-            print(f"[ERROR] Step 1 failed and no existing UpdateRecord.json found. Cannot continue.")
-            print(f"        Place config-record/record.json at:")
-            print(f"        {Path(__file__).parent.parent / 'config-record' / 'record.json'}")
-            sys.exit(1)
+        sys.exit(1)
 
     # ── Step 2: Download & extract ## Update List sections ───────────────────
     print()
     print("=" * 60)
     print("  STEP 2 — Extract Update Lists from Box READMEs")
     print("=" * 60)
-    UpdateExtract.run(force=force)
+    step2_ok = UpdateExtract.run(force=force)
+
+    if not step2_ok:
+        print()
+        print("=" * 60)
+        print("  FAILED — Box failed to extract information for one or more tools.")
+        print("  Email not sent. Fix the issue above and re-run the pipeline.")
+        print("=" * 60)
+        sys.exit(1)
 
     if skip_email:
         print("\n[INFO] --skip-email flag set. Pipeline complete (no email sent).")

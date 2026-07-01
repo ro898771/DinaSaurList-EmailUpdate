@@ -159,7 +159,15 @@ def _load_json(path: Path, label: str) -> dict | None:
 def build_update_record() -> None:
     print("[INFO] Refreshing record.json from Box ...")
     if not _fetch_record_from_box():
-        print("[ERROR] Could not refresh record.json from Box. Cannot continue.")
+        print()
+        print("=" * 60)
+        print("  FAILED — Could not fetch record.json from Box.")
+        print("  Possible causes:")
+        print("    • BoxAutomate.exe not found or not accessible")
+        print("    • No network / Box connection")
+        print("    • Box returned empty folder listing")
+        print("  Fix the issue above and re-run the pipeline.")
+        print("=" * 60)
         return False
 
     record = _load_json(_LOCAL_RECORD, "record.json")

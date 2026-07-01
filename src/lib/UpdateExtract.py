@@ -55,6 +55,23 @@ def _extract_update_list(readme_text: str) -> str:
     return content if content else "(No update entries found)"
 
 
+def _write_extracted_file(tool_name: str, version: str, developer: str, out_path: Path, content: str) -> None:
+    """Remove any stale version .md for this tool, then write the new one."""
+    prefix = f"{tool_name}_"
+    suffix = f"_{developer}.md"
+    for old in DATA_DIR.iterdir():
+        if old.is_file() and old.name.startswith(prefix) and old.name.endswith(suffix) and old != out_path:
+            old.unlink()
+            print(f"  [CLEAN] Removed old: {old.name}")
+
+    out_path.write_text(
+        f"# {tool_name} — Update List\n"
+        f"Version: {version}  |  Developer: {developer}\n\n"
+        f"{content}\n",
+        encoding="utf-8",
+    )
+
+
 def _existing_md_files() -> list[Path]:
     if not DATA_DIR.exists():
         return []
@@ -83,7 +100,7 @@ def _save_record(record: dict) -> None:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
-def run(force: bool = False) -> None:
+def run(force: bool = False) -> bool:
     try:
         api = BoxLinkAPI(PROJECT_ROOT / "BoxLink-API" / "BoxAutomate.exe")
     except FileNotFoundError as exc:
@@ -109,11 +126,12 @@ def run(force: bool = False) -> None:
 
     if not targets:
         print("[OK] All tools are up to date. Nothing to fetch.")
-        return
+        return True
 
     # Build a mutable lookup so we can update flags in-place
     tool_map: dict[str, dict] = {t["folder_name"]: t for t in all_tools}
     updated = 0
+    failed: list[str] = []
 
     for tool in targets:
         tool_name  = tool["tool_name"]
@@ -124,7 +142,14 @@ def run(force: bool = False) -> None:
         out_path   = DATA_DIR / out_name
 
         if not readme_id:
-            print(f"  [SKIP] {tool_name} — no README.md file ID recorded.")
+            print(f"  [WARN] {tool_name} — no README.md in Box folder. Writing empty placeholder.")
+            DATA_DIR.mkdir(parents=True, exist_ok=True)
+            _write_extracted_file(tool_name, version, developer, out_path, "(No update entries found)")
+
+            entry = tool_map[tool["folder_name"]]
+            entry["is_latest"]      = True
+            entry["last_extracted"] = datetime.now(timezone.utc).isoformat()
+            updated += 1
             continue
 
         print(f"  [FETCH] {tool_name} v{version} by {developer} ...", end=" ", flush=True)
@@ -137,6 +162,7 @@ def run(force: bool = False) -> None:
 
             if not ok or not (data and data.get("downloaded")):
                 print(f"FAILED\n    [ERROR] {err or 'download unsuccessful'}")
+                failed.append(tool_name)
                 continue
 
             # Resolve the downloaded file: use the destination reported by BoxAutomate
@@ -149,27 +175,14 @@ def run(force: bool = False) -> None:
                 candidates = [f for f in Path(tmp).iterdir() if f.is_file()]
                 if not candidates:
                     print(f"FAILED\n    [ERROR] Downloaded file not found in temp dir")
+                    failed.append(tool_name)
                     continue
                 downloaded_path = candidates[0]
 
             readme_text = downloaded_path.read_text(encoding="utf-8", errors="replace")
 
         update_content = _extract_update_list(readme_text)
-
-        # Remove any old version .md for this tool before writing the new one
-        prefix = f"{tool_name}_"
-        suffix = f"_{developer}.md"
-        for old in DATA_DIR.iterdir():
-            if old.is_file() and old.name.startswith(prefix) and old.name.endswith(suffix) and old != out_path:
-                old.unlink()
-                print(f"\n  [CLEAN] Removed old: {old.name}", end=" ")
-
-        out_path.write_text(
-            f"# {tool_name} — Update List\n"
-            f"Version: {version}  |  Developer: {developer}\n\n"
-            f"{update_content}\n",
-            encoding="utf-8",
-        )
+        _write_extracted_file(tool_name, version, developer, out_path, update_content)
         print(f"OK -> {out_name}")
 
         entry = tool_map[tool["folder_name"]]
@@ -181,7 +194,14 @@ def run(force: bool = False) -> None:
     _save_record(record)
     print(f"\n[DONE] {updated} file(s) extracted to email-dev/data/.")
 
+    if failed:
+        print(f"[ERROR] {len(failed)} tool(s) failed to extract from Box: {', '.join(failed)}")
+        return False
+    return True
+
 
 if __name__ == "__main__":
     force_flag = "--force" in sys.argv
-    run(force=force_flag)
+    ok = run(force=force_flag)
+    if not ok:
+        sys.exit(1)
