@@ -1,0 +1,11 @@
+{
+  "smtp_host": "relay.smtp.broadcom.com",
+  "smtp_port": 587,
+  "smtp_tls": true,
+  "smtp_user": "",
+  "smtp_pass": "",
+  "sender": "DinasaurList@broadcom.com",
+  "recipients": [
+    "roey-yee.ong@broadcom.com"
+  ]
+}
