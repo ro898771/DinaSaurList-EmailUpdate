@@ -1,1 +1,1 @@
-# DinaSaurList-EmailUpdate
+# DinosaurList-EmailUpdate

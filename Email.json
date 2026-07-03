@@ -4,7 +4,7 @@
   "smtp_tls": true,
   "smtp_user": "",
   "smtp_pass": "",
-  "sender": "DinasaurList@broadcom.com",
+  "sender": "DinosaurList@broadcom.com",
   "recipients": [
     "roey-yee.ong@broadcom.com"
   ]
