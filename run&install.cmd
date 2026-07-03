@@ -23,7 +23,6 @@ REM --- If venv still missing after updater ran, show error (runtime.exe should 
 if not exist "%ENV_PYTHON%" (
     echo ERROR: Virtual environment not found. runtime.exe may have encountered an error above.
     echo Please check the log above, or run env-Init.cmd manually to set up the environment.
-    pause
     exit /b 1
 )
 
@@ -32,6 +31,5 @@ set PYTHONDONTWRITEBYTECODE=1
 "%ENV_PYTHON%" "%BASE_DIR%%MAIN_SCRIPT%"
 
 echo.
-echo Script complete. Press Enter to exit.
-pause >nul
+echo Script complete.
 endlocal

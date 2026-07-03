@@ -174,13 +174,18 @@ def build_update_record() -> None:
     if record is None:
         return False
 
-    # Preserve last_extracted timestamps from a previous run
+    # Preserve last_extracted timestamps from a previous run, and bump the
+    # execution counter — it increments every time the pipeline runs, so
+    # email_send_count == 1 marks the very first execution.
     existing: dict[str, dict] = {}
+    email_send_count = 0
     if UPDATE_RECORD.exists():
         saved = _load_json(UPDATE_RECORD, "UpdateRecord.json")
         if saved:
             for t in saved.get("tools", []):
                 existing[t["folder_name"]] = t
+            email_send_count = saved.get("email_send_count", 0)
+    email_send_count += 1
 
     tools = []
     for item in record.get("items", []):
@@ -208,8 +213,23 @@ def build_update_record() -> None:
             "last_emailed_version": prev.get("last_emailed_version"),
         })
 
+    # Log tools that disappeared from Box since the previous run
+    removed_folders = existing.keys() - {t["folder_name"] for t in tools}
+    for folder_name in sorted(removed_folders):
+        print(f"  [REMOVED] {folder_name} — no longer present in Box, dropped from UpdateRecord.json")
+
+    # Sweep data/ so it never holds .md files for tools/versions that no longer
+    # exist in Box (covers both a whole app being deleted and its content changing).
+    valid_extracted_files = {t["extracted_file"] for t in tools}
+    if DATA_DIR.exists():
+        for md_file in DATA_DIR.glob("*.md"):
+            if md_file.name not in valid_extracted_files:
+                md_file.unlink()
+                print(f"  [CLEAN] Removed orphaned data file: {md_file.name}")
+
     output = {
         "last_updated": datetime.now(timezone.utc).isoformat(),
+        "email_send_count": email_send_count,
         "tools": tools,
     }
     with open(UPDATE_RECORD, "w", encoding="utf-8") as f:

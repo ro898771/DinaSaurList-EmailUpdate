@@ -47,15 +47,7 @@ def main() -> None:
     print("=" * 60)
     print("  STEP 2 — Extract Update Lists from Box READMEs")
     print("=" * 60)
-    step2_ok = UpdateExtract.run(force=force)
-
-    if not step2_ok:
-        print()
-        print("=" * 60)
-        print("  FAILED — Box failed to extract information for one or more tools.")
-        print("  Email not sent. Fix the issue above and re-run the pipeline.")
-        print("=" * 60)
-        sys.exit(1)
+    UpdateExtract.run(force=force)
 
     if skip_email:
         print("\n[INFO] --skip-email flag set. Pipeline complete (no email sent).")

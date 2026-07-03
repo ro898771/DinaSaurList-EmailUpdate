@@ -64,6 +64,11 @@ def _load_tools() -> tuple[list[dict], list[dict]]:
 
     updated_tools: tools whose version differs from last_emailed_version,
                    meaning they have a new release since the last email.
+                   On the very first execution of the pipeline
+                   (email_send_count == 1), every tool is treated as updated
+                   so the first email always includes full content for the
+                   whole DinosaurList; from the second execution onward
+                   (email_send_count > 1) diff-based tracking takes over.
     """
     if not UPDATE_RECORD.exists():
         return [], []
@@ -77,6 +82,8 @@ def _load_tools() -> tuple[list[dict], list[dict]]:
         print(f"[ERROR] UpdateRecord.json is not valid JSON ({exc}): {UPDATE_RECORD}")
         return [], []
     all_tools = record.get("tools", [])
+    if record.get("email_send_count", 0) <= 1:
+        return list(all_tools), all_tools
     updated = [
         t for t in all_tools
         if t.get("version") != t.get("last_emailed_version")
